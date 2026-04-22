@@ -224,4 +224,36 @@ class InvoiceController extends Controller
             ->header('Content-Type', 'text/csv')
             ->header('Content-Disposition', 'attachment; filename="invoices-' . now()->format('Y-m-d') . '.csv"');
     }
+
+    public function generatePdf(Tenant $tenant, Invoice $invoice)
+    {
+        $invoice->load(['customer', 'quotation.package', 'booking.package']);
+
+        $package = $invoice->booking?->package ?? $invoice->quotation?->package;
+        $items = [];
+        if ($package) {
+            $items[] = [
+                'description' => $package->name,
+                'qty' => 1,
+                'rate' => $package->price,
+                'amount' => $package->price,
+            ];
+        }
+
+        $data = [
+            'workspace' => $tenant->only(['id', 'name', 'slug', 'logo_url']),
+            'invoice' => array_merge($invoice->toArray(), [
+                'public_id' => $invoice->invoice_number,
+                'sub_total' => $invoice->subtotal,
+                'total' => $invoice->total_amount,
+                'paid_amount' => $invoice->amount_paid,
+                'notes' => $invoice->remarks,
+                'subject' => $package?->name,
+                'items' => $items,
+            ]),
+        ];
+
+        $pdf = \PDF::loadView('pdf.invoice', $data);
+        return $pdf->download('invoice-' . $invoice->invoice_number . '.pdf');
+    }
 }

@@ -121,6 +121,7 @@ navigationSections[2].items = [
 
 navigationSections[3].items = [
     { label: 'Surat Melancong', href: workspacePath('/tourism-letters'), active: page.url.includes('/tourism-letters'), icon: 'document' },
+    { label: 'Rooming List', href: workspacePath('/rooming-list'), active: page.url.includes('/rooming-list'), icon: 'rooming' },
 ];
 
 navigationSections[4].items = [

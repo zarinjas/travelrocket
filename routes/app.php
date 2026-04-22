@@ -16,6 +16,7 @@ use App\Http\Controllers\Workspace\PackageController;
 use App\Http\Controllers\Workspace\QuotationController;
 use App\Http\Controllers\Workspace\InvoiceController;
 use App\Http\Controllers\Workspace\SettingsController;
+use App\Http\Controllers\Workspace\RoomingListController;
 use App\Http\Controllers\Workspace\TourSetupController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -40,6 +41,10 @@ Route::prefix('/workspace/{tenant:slug}')
         Route::post('/packages/{package}/toggle-status', [PackageController::class, 'toggleStatus'])->name('packages.toggle-status');
         Route::post('/packages/{package}/duplicate', [PackageController::class, 'duplicate'])->name('packages.duplicate');
         Route::delete('/packages/{package}', [PackageController::class, 'destroy'])->name('packages.destroy');
+        Route::get('/rooming-list', [RoomingListController::class, 'index'])->name('rooming-list.index');
+        Route::get('/packages/{package}/rooming-list', [RoomingListController::class, 'show'])->name('packages.rooming-list.show');
+        Route::post('/packages/{package}/rooming-list/save', [RoomingListController::class, 'save'])->name('packages.rooming-list.save');
+        Route::get('/packages/{package}/rooming-list/pdf', [RoomingListController::class, 'generatePdf'])->name('packages.rooming-list.pdf');
 
         Route::get('/reports', function (Tenant $tenant) {
             $bookings = Booking::query()->with('package')->get();
@@ -115,6 +120,7 @@ Route::prefix('/workspace/{tenant:slug}')
         Route::get('/quotations/create', [QuotationController::class, 'create'])->name('quotations.create');
         Route::post('/quotations', [QuotationController::class, 'store'])->name('quotations.store');
         Route::get('/quotations/{quotation}', [QuotationController::class, 'show'])->name('quotations.show');
+        Route::get('/quotations/{quotation}/pdf', [QuotationController::class, 'generatePdf'])->name('quotations.pdf');
 
         // New Invoice Routes
         Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoices.index');
@@ -125,6 +131,7 @@ Route::prefix('/workspace/{tenant:slug}')
         Route::get('/invoices/create', [InvoiceController::class, 'create'])->name('invoices.create');
         Route::post('/invoices', [InvoiceController::class, 'store'])->name('invoices.store');
         Route::get('/invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoices.show');
+        Route::get('/invoices/{invoice}/pdf', [InvoiceController::class, 'generatePdf'])->name('invoices.pdf');
         Route::post('/invoices/{invoice}/payment', [InvoiceController::class, 'recordPayment'])->name('invoices.record-payment');
         Route::post('/invoices/{invoice}/mark-collection-action', [CashflowController::class, 'markCollectionAction'])->name('cashflow.mark-collection-action');
         Route::get('/quotations/{quotation}/convert', [InvoiceController::class, 'convertFromQuote'])->name('quotations.convert');

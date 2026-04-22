@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx vite *)",
+      "Bash(php artisan *)",
+      "Bash(grep -A5 \"fillable\\\\|protected \\\\$\")",
+      "Bash(grep -E \"\\\\.\\(blade\\\\.php|php\\)$\")"
+    ]
+  }
+}

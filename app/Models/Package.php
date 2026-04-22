@@ -6,6 +6,7 @@ use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class Package extends Model
 {
@@ -27,6 +28,14 @@ class Package extends Model
         'inclusions',
         'exclusions',
         'pricing_tiers',
+        'room_types',
+        'highlights',
+        'meal_plan',
+        'hotel_details',
+        'flight_info',
+        'visa_info',
+        'min_pax',
+        'max_pax',
         'terms_conditions',
         'booking_capacity',
         'current_bookings',
@@ -54,6 +63,13 @@ class Package extends Model
             'inclusions' => 'array',
             'exclusions' => 'array',
             'pricing_tiers' => 'array',
+            'room_types' => 'array',
+            'highlights' => 'array',
+            'hotel_details' => 'array',
+            'flight_info' => 'array',
+            'visa_info' => 'array',
+            'min_pax' => 'integer',
+            'max_pax' => 'integer',
         ];
     }
 
@@ -75,5 +91,10 @@ class Package extends Model
     public function bookings(): HasMany
     {
         return $this->hasMany(Booking::class);
+    }
+
+    public function images(): HasMany
+    {
+        return $this->hasMany(PackageImage::class)->orderBy('sort_order');
     }
 }

@@ -68,7 +68,7 @@ class PublicSiteController extends Controller
     {
         abort_unless($package->status === 'published', 404);
 
-        $package->load('tenant:id,name,company_name,company_phone,company_email,logo_path');
+        $package->load(['tenant:id,name,company_name,company_phone,company_email,logo_path', 'images']);
 
         $depositPercentage = 30;
 
@@ -87,6 +87,14 @@ class PublicSiteController extends Controller
                 'is_sold_out' => $package->is_sold_out,
                 'booking_capacity' => $package->booking_capacity,
                 'cover_image_url' => $package->cover_image_path ? '/storage/' . $package->cover_image_path : null,
+                'gallery_images' => $package->images->map(fn ($img) => '/storage/' . $img->path)->values()->all(),
+                'highlights' => $package->highlights ?? [],
+                'meal_plan' => $package->meal_plan,
+                'hotel_details' => $package->hotel_details ?? [],
+                'flight_info' => $package->flight_info,
+                'visa_info' => $package->visa_info,
+                'min_pax' => $package->min_pax ?? 1,
+                'max_pax' => $package->max_pax,
                 'itinerary_days' => $package->itinerary_days ?? [],
                 'inclusions' => $package->inclusions ?? [],
                 'exclusions' => $package->exclusions ?? [],
@@ -112,7 +120,7 @@ class PublicSiteController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
             'phone' => ['required', 'string', 'max:30'],
-            'pax' => ['required', 'integer', 'min:1', 'max:' . $package->available_seats],
+            'pax' => ['required', 'integer', 'min:' . ($package->min_pax ?? 1), 'max:' . min($package->available_seats, $package->max_pax ?? $package->available_seats)],
             'payment_type' => ['required', 'in:deposit,full'],
         ]);
 

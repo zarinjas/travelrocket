@@ -42,6 +42,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $middleware->appendToGroup('web', HandleInertiaRequests::class);
+        $middleware->appendToGroup('web', \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class);
         $middleware->validateCsrfTokens(except: [
             'webhooks/payments/*',
         ]);

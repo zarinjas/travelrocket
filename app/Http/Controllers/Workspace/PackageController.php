@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Workspace;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Package;
+use App\Models\PackageImage;
 use App\Models\Tenant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -47,7 +48,7 @@ class PackageController extends Controller
 
     public function show(Tenant $tenant, Package $package): Response
     {
-        $package->load(['bookings.leadCustomer', 'bookings.payments']);
+        $package->load(['bookings.leadCustomer', 'bookings.payments', 'images']);
 
         return Inertia::render('Workspace/Packages/ShowPage', [
             'workspace' => $tenant->only(['id', 'name', 'slug']),
@@ -97,7 +98,8 @@ class PackageController extends Controller
         $validated = $this->validatePackage($request);
         $brochure = $validated['brochure'] ?? null;
         $coverImage = $validated['cover_image'] ?? null;
-        unset($validated['brochure'], $validated['cover_image']);
+        $galleryImages = $validated['gallery_images'] ?? [];
+        unset($validated['brochure'], $validated['cover_image'], $validated['gallery_images']);
 
         $validated['type'] = $validated['category'];
         $validated['current_bookings'] = 0;
@@ -110,7 +112,12 @@ class PackageController extends Controller
             $validated['cover_image_path'] = $this->storeCoverImage($coverImage, $tenant);
         }
 
-        Package::query()->create($validated);
+        $package = Package::query()->create($validated);
+
+        foreach ($galleryImages as $index => $image) {
+            $path = $this->storeGalleryImage($image, $tenant);
+            $package->images()->create(['tenant_id' => $tenant->id, 'path' => $path, 'sort_order' => $index]);
+        }
 
         return redirect()
             ->route('packages.index', ['tenant' => $tenant])
@@ -119,6 +126,8 @@ class PackageController extends Controller
 
     public function edit(Tenant $tenant, Package $package): Response
     {
+        $package->load('images');
+
         return Inertia::render('Workspace/Packages/FormPage', [
             'workspace' => $tenant->only(['id', 'name', 'slug']),
             'package' => $this->mapPackage($package),
@@ -135,7 +144,9 @@ class PackageController extends Controller
         $validated = $this->validatePackage($request);
         $brochure = $validated['brochure'] ?? null;
         $coverImage = $validated['cover_image'] ?? null;
-        unset($validated['brochure'], $validated['cover_image']);
+        $galleryImages = $validated['gallery_images'] ?? [];
+        $deleteImageIds = $request->input('delete_gallery_ids', []);
+        unset($validated['brochure'], $validated['cover_image'], $validated['gallery_images']);
 
         $validated['type'] = $validated['category'];
         $validated['current_bookings'] = $package->current_bookings;
@@ -150,6 +161,20 @@ class PackageController extends Controller
 
         $package->update($validated);
 
+        if ($deleteImageIds) {
+            $toDelete = $package->images()->whereIn('id', $deleteImageIds)->get();
+            foreach ($toDelete as $img) {
+                Storage::disk('public')->delete($img->path);
+                $img->delete();
+            }
+        }
+
+        $existingCount = $package->images()->count();
+        foreach ($galleryImages as $index => $image) {
+            $path = $this->storeGalleryImage($image, $tenant);
+            $package->images()->create(['tenant_id' => $tenant->id, 'path' => $path, 'sort_order' => $existingCount + $index]);
+        }
+
         return redirect()
             ->route('packages.index', ['tenant' => $tenant])
             ->with('success', 'Package updated successfully.');
@@ -159,6 +184,14 @@ class PackageController extends Controller
     {
         if ($package->brochure_path) {
             Storage::disk('public')->delete($package->brochure_path);
+        }
+
+        if ($package->cover_image_path) {
+            Storage::disk('public')->delete($package->cover_image_path);
+        }
+
+        foreach ($package->images as $image) {
+            Storage::disk('public')->delete($image->path);
         }
 
         $package->delete();
@@ -275,7 +308,33 @@ class PackageController extends Controller
             'pricing_tiers.adult' => ['nullable', 'numeric', 'min:0'],
             'pricing_tiers.child' => ['nullable', 'numeric', 'min:0'],
             'pricing_tiers.infant' => ['nullable', 'numeric', 'min:0'],
+            'room_types' => ['nullable', 'array'],
+            'room_types.*.name' => ['required_with:room_types', 'string', 'max:100'],
+            'room_types.*.occupancy' => ['required_with:room_types', 'integer', 'min:1', 'max:20'],
+            'room_types.*.price_per_person' => ['required_with:room_types', 'numeric', 'min:0'],
+            'room_types.*.available_rooms' => ['nullable', 'integer', 'min:0'],
+            'highlights' => ['nullable', 'array'],
+            'highlights.*' => ['string', 'max:255'],
+            'meal_plan' => ['nullable', 'string', 'in:none,breakfast,half_board,full_board,all_inclusive'],
+            'hotel_details' => ['nullable', 'array'],
+            'hotel_details.*.hotel_name' => ['required_with:hotel_details', 'string', 'max:255'],
+            'hotel_details.*.city' => ['required_with:hotel_details', 'string', 'max:100'],
+            'hotel_details.*.stars' => ['nullable', 'integer', 'min:1', 'max:5'],
+            'hotel_details.*.nights' => ['nullable', 'integer', 'min:1'],
+            'flight_info' => ['nullable', 'array'],
+            'flight_info.departure_city' => ['nullable', 'string', 'max:100'],
+            'flight_info.airline' => ['nullable', 'string', 'max:100'],
+            'flight_info.flight_class' => ['nullable', 'string', 'in:economy,business,first'],
+            'flight_info.is_direct' => ['nullable', 'boolean'],
+            'visa_info' => ['nullable', 'array'],
+            'visa_info.included' => ['nullable', 'string', 'in:yes,no,own'],
+            'visa_info.type' => ['nullable', 'string', 'max:100'],
+            'visa_info.processing_days' => ['nullable', 'integer', 'min:1'],
+            'min_pax' => ['nullable', 'integer', 'min:1'],
+            'max_pax' => ['nullable', 'integer', 'min:1'],
             'terms_conditions' => ['nullable', 'string'],
+            'gallery_images' => ['nullable', 'array', 'max:7'],
+            'gallery_images.*' => ['file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ]);
     }
 
@@ -311,6 +370,14 @@ class PackageController extends Controller
             'inclusions' => $package->inclusions ?? [],
             'exclusions' => $package->exclusions ?? [],
             'pricing_tiers' => $package->pricing_tiers ?? ['adult' => null, 'child' => null, 'infant' => null],
+            'room_types' => $package->room_types ?? [],
+            'highlights' => $package->highlights ?? [],
+            'meal_plan' => $package->meal_plan,
+            'hotel_details' => $package->hotel_details ?? [],
+            'flight_info' => $package->flight_info ?? ['departure_city' => '', 'airline' => '', 'flight_class' => 'economy', 'is_direct' => true],
+            'visa_info' => $package->visa_info ?? ['included' => 'no', 'type' => '', 'processing_days' => null],
+            'min_pax' => $package->min_pax ?? 1,
+            'max_pax' => $package->max_pax,
             'terms_conditions' => $package->terms_conditions,
             'booking_capacity' => $package->booking_capacity,
             'current_bookings' => $package->current_bookings,
@@ -324,7 +391,22 @@ class PackageController extends Controller
             'cover_image_url' => $package->cover_image_path ? '/storage/' . $package->cover_image_path : null,
             'status' => $package->status,
             'description' => $package->description,
+            'gallery_images' => $package->images->map(fn ($img) => [
+                'id' => $img->id,
+                'url' => '/storage/' . $img->path,
+                'sort_order' => $img->sort_order,
+            ])->values()->all(),
         ];
+    }
+
+    protected function storeGalleryImage(mixed $image, Tenant $tenant): string
+    {
+        $directory = "gallery/{$tenant->id}";
+        $extension = strtolower((string) $image->getClientOriginalExtension());
+        $hash = hash('sha256', $tenant->id.'|'.Str::uuid()->toString().'|'.microtime(true));
+        $fileName = $hash.($extension ? ".{$extension}" : '');
+
+        return $image->storeAs($directory, $fileName, 'public');
     }
 
     protected function storeBrochure(mixed $brochure, Tenant $tenant, ?string $oldPath = null): string

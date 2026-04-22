@@ -136,4 +136,35 @@ class QuotationController extends Controller
             ->header('Content-Type', 'text/csv')
             ->header('Content-Disposition', 'attachment; filename="quotations-' . now()->format('Y-m-d') . '.csv"');
     }
+
+    public function generatePdf(Tenant $tenant, Quotation $quotation)
+    {
+        $quotation->load(['customer']);
+
+        $items = [];
+        if ($quotation->package) {
+            $items[] = [
+                'description' => $quotation->package->name,
+                'qty' => 1,
+                'rate' => $quotation->package->price,
+                'amount' => $quotation->package->price,
+            ];
+        }
+
+        $data = [
+            'workspace' => $tenant->only(['id', 'name', 'slug', 'logo_url']),
+            'quotation' => array_merge($quotation->toArray(), [
+                'public_id' => $quotation->quotation_number,
+                'sub_total' => $quotation->subtotal,
+                'total' => $quotation->total_amount,
+                'notes' => $quotation->remarks,
+                'expiry_date' => $quotation->valid_until,
+                'subject' => $quotation->package?->name,
+                'items' => $items,
+            ]),
+        ];
+
+        $pdf = \PDF::loadView('pdf.quotation', $data);
+        return $pdf->download('quotation-' . $quotation->quotation_number . '.pdf');
+    }
 }

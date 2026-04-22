@@ -19,6 +19,7 @@ class Customer extends Model
         'name',
         'full_name',
         'passport_number',
+        'date_of_birth',
         'passport_copy_path',
         'address',
         'email',

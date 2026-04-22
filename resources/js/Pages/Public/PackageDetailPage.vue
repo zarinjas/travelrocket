@@ -9,24 +9,52 @@ const props = defineProps({
 
 const pkg = props.package;
 
+const activeTab = ref('itinerary');
+
+// Gallery lightbox
+const lightboxOpen = ref(false);
+const lightboxIndex = ref(0);
+const galleryImages = computed(() => pkg.gallery_images ?? []);
+const openLightbox = (index) => { lightboxIndex.value = index; lightboxOpen.value = true; };
+const closeLightbox = () => { lightboxOpen.value = false; };
+const prevImage = () => { lightboxIndex.value = (lightboxIndex.value - 1 + galleryImages.value.length) % galleryImages.value.length; };
+const nextImage = () => { lightboxIndex.value = (lightboxIndex.value + 1) % galleryImages.value.length; };
+
+const minPax = pkg.min_pax ?? 1;
+const maxPax = pkg.max_pax ?? pkg.available_seats;
+
 const form = useForm({
     name: '',
     email: '',
     phone: '',
-    pax: 1,
+    pax: minPax,
     payment_type: 'full',
     card_number: '4242 4242 4242 4242',
     card_expiry: '12/28',
     card_cvc: '123',
 });
 
-const activeTab = ref('itinerary');
-
 const totalPrice = computed(() => pkg.price * form.pax);
 const depositAmount = computed(() => Math.round(totalPrice.value * props.depositPercentage / 100));
 const payableAmount = computed(() => form.payment_type === 'deposit' ? depositAmount.value : totalPrice.value);
 
 const formatPrice = (price) => 'RM ' + Number(price).toLocaleString('en-MY', { minimumFractionDigits: 0 });
+
+const mealPlanLabel = {
+    none: null,
+    breakfast: 'Breakfast Only',
+    half_board: 'Half Board',
+    full_board: 'Full Board',
+    all_inclusive: 'All Inclusive',
+};
+
+const visaIncludedLabel = {
+    yes: 'Included',
+    no: 'Not Included',
+    own: 'Handle on own',
+};
+
+const starCount = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
 
 const submit = () => {
     form.post(`/packages/${pkg.id}/book`);
@@ -76,6 +104,63 @@ const submit = () => {
             </div>
         </div>
 
+        <!-- ═══════════ GALLERY ═══════════ -->
+        <div v-if="galleryImages.length" class="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8">
+            <div class="grid gap-2" :class="{
+                'grid-cols-1': galleryImages.length === 1,
+                'grid-cols-2': galleryImages.length === 2,
+                'grid-cols-3': galleryImages.length >= 3,
+            }">
+                <div
+                    v-for="(url, idx) in galleryImages.slice(0, 5)"
+                    :key="idx"
+                    class="group relative cursor-pointer overflow-hidden rounded-xl bg-gray-200"
+                    :class="[
+                        galleryImages.length >= 3 && idx === 0 ? 'col-span-2 row-span-2' : '',
+                        galleryImages.length === 1 ? 'aspect-video' : 'aspect-square',
+                    ]"
+                    @click="openLightbox(idx)"
+                >
+                    <img :src="url" class="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
+                    <div class="absolute inset-0 bg-black/0 transition group-hover:bg-black/20"></div>
+                    <!-- "View all" overlay on the last visible tile when there are more -->
+                    <div v-if="idx === 4 && galleryImages.length > 5" class="absolute inset-0 flex items-center justify-center bg-black/50">
+                        <p class="text-xl font-bold text-white">+{{ galleryImages.length - 5 }} more</p>
+                    </div>
+                </div>
+            </div>
+            <button
+                type="button"
+                class="mt-2 text-xs font-semibold text-blue-600 hover:text-blue-700"
+                @click="openLightbox(0)"
+            >
+                View all {{ galleryImages.length }} photos
+            </button>
+        </div>
+
+        <!-- Lightbox -->
+        <Teleport to="body">
+            <div
+                v-if="lightboxOpen"
+                class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+                @click.self="closeLightbox"
+            >
+                <button class="absolute left-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20" @click="closeLightbox">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" /></svg>
+                </button>
+                <button v-if="galleryImages.length > 1" class="absolute left-4 top-1/2 -translate-y-1/2 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20" @click="prevImage">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-6 w-6"><path fill-rule="evenodd" d="M11.78 5.22a.75.75 0 010 1.06L8.06 10l3.72 3.72a.75.75 0 11-1.06 1.06l-4.25-4.25a.75.75 0 010-1.06l4.25-4.25a.75.75 0 011.06 0z" clip-rule="evenodd" /></svg>
+                </button>
+                <img :src="galleryImages[lightboxIndex]" class="max-h-[85vh] max-w-full rounded-xl object-contain shadow-2xl" />
+                <button v-if="galleryImages.length > 1" class="absolute right-4 top-1/2 -translate-y-1/2 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20" @click="nextImage">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-6 w-6"><path fill-rule="evenodd" d="M8.22 5.22a.75.75 0 011.06 0l4.25 4.25a.75.75 0 010 1.06l-4.25 4.25a.75.75 0 01-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 010-1.06z" clip-rule="evenodd" /></svg>
+                </button>
+                <div class="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/50 px-3 py-1 text-xs font-semibold text-white">
+                    {{ lightboxIndex + 1 }} / {{ galleryImages.length }}
+                </div>
+            </div>
+        </Teleport>
+
         <!-- ═══════════ MAIN CONTENT ═══════════ -->
         <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
             <div class="grid gap-8 lg:grid-cols-[1fr_380px]">
@@ -123,6 +208,22 @@ const submit = () => {
                                 <p class="text-sm font-extrabold text-blue-600">{{ formatPrice(pkg.price) }}</p>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Highlights -->
+                    <div v-if="pkg.highlights?.length" class="rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 p-6 ring-1 ring-blue-100">
+                        <h2 class="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-blue-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4"><path fill-rule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.381c-.833.067-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.485c.713.436 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.584-.536-1.65l-4.752-.382-1.831-4.401z" clip-rule="evenodd" /></svg>
+                            Why Choose This Package
+                        </h2>
+                        <ul class="grid gap-2 sm:grid-cols-2">
+                            <li v-for="(h, i) in pkg.highlights" :key="i" class="flex items-start gap-2.5">
+                                <div class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="h-3 w-3 text-white"><path fill-rule="evenodd" d="M12.416 3.376a.75.75 0 01.208 1.04l-5 7.5a.75.75 0 01-1.154.114l-3-3a.75.75 0 011.06-1.06l2.353 2.353 4.493-6.74a.75.75 0 011.04-.207z" clip-rule="evenodd" /></svg>
+                                </div>
+                                <span class="text-sm font-medium text-gray-800">{{ h }}</span>
+                            </li>
+                        </ul>
                     </div>
 
                     <!-- Description -->
@@ -222,6 +323,92 @@ const submit = () => {
                         </div>
                     </div>
 
+                    <!-- Hotel / Flight / Meal / Visa Info -->
+                    <div v-if="pkg.hotel_details?.length || pkg.flight_info?.airline || pkg.meal_plan || pkg.visa_info?.included" class="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100 overflow-hidden">
+                        <div class="border-b border-gray-100 px-6 py-4">
+                            <h2 class="text-lg font-bold text-gray-900">Package Details</h2>
+                        </div>
+
+                        <!-- Hotels -->
+                        <div v-if="pkg.hotel_details?.length" class="border-b border-gray-100 px-6 py-5">
+                            <h3 class="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-700">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4 text-gray-400"><path fill-rule="evenodd" d="M1 2.75A.75.75 0 011.75 2h10.5a.75.75 0 010 1.5H12v13.75a.75.75 0 01-.75.75h-1.5a.75.75 0 01-.75-.75v-2.5a.75.75 0 00-.75-.75h-2.5a.75.75 0 00-.75.75v2.5a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h.25V3.5H1.75A.75.75 0 011 2.75zM4 3.5v13H6v-2.25c0-.69.56-1.25 1.25-1.25h2.5c.69 0 1.25.56 1.25 1.25V16.5h2V3.5H4z" clip-rule="evenodd" /><path d="M17 7.25a.75.75 0 00-1.5 0V19h-1.5V7.25a.75.75 0 00-1.5 0v12.5a.75.75 0 00.75.75h4.5a.75.75 0 00.75-.75V7.25z" /></svg>
+                                Accommodation
+                            </h3>
+                            <div class="space-y-3">
+                                <div v-for="(hotel, i) in pkg.hotel_details" :key="i" class="flex items-start justify-between gap-4 rounded-xl bg-gray-50 px-4 py-3">
+                                    <div>
+                                        <p class="text-sm font-semibold text-gray-900">{{ hotel.hotel_name }}</p>
+                                        <p class="text-xs text-gray-500">{{ hotel.city }}</p>
+                                    </div>
+                                    <div class="text-right shrink-0">
+                                        <p v-if="hotel.stars" class="text-xs font-medium text-amber-500">{{ starCount(hotel.stars) }}</p>
+                                        <p v-if="hotel.nights" class="text-xs text-gray-500">{{ hotel.nights }} nights</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Flight -->
+                        <div v-if="pkg.flight_info?.airline || pkg.flight_info?.departure_city" class="border-b border-gray-100 px-6 py-5">
+                            <h3 class="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-700">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4 text-gray-400"><path d="M3.105 2.289a.75.75 0 00-.826.95l1.414 4.925A1.5 1.5 0 005.135 9.25h6.115a.25.25 0 01.245.296l-.972 5.393A.75.75 0 0011.5 15.5h.003a.75.75 0 00.744-.657l.97-8.03A.75.75 0 0114 6h2.5a.75.75 0 000-1.5H14a2.25 2.25 0 00-2.228 1.92l-.116.966A1.5 1.5 0 0110.183 6H5.135a.25.25 0 01-.241-.18L3.48 1.99a.75.75 0 00-.375-.701z" /></svg>
+                                Flight
+                            </h3>
+                            <div class="flex flex-wrap gap-3">
+                                <div v-if="pkg.flight_info.departure_city" class="rounded-lg bg-gray-50 px-3 py-2">
+                                    <p class="text-[10px] uppercase tracking-wider text-gray-400">From</p>
+                                    <p class="text-sm font-semibold text-gray-900">{{ pkg.flight_info.departure_city }}</p>
+                                </div>
+                                <div v-if="pkg.flight_info.airline" class="rounded-lg bg-gray-50 px-3 py-2">
+                                    <p class="text-[10px] uppercase tracking-wider text-gray-400">Airline</p>
+                                    <p class="text-sm font-semibold text-gray-900">{{ pkg.flight_info.airline }}</p>
+                                </div>
+                                <div v-if="pkg.flight_info.flight_class" class="rounded-lg bg-gray-50 px-3 py-2">
+                                    <p class="text-[10px] uppercase tracking-wider text-gray-400">Class</p>
+                                    <p class="text-sm font-semibold text-gray-900 capitalize">{{ pkg.flight_info.flight_class }}</p>
+                                </div>
+                                <div class="rounded-lg px-3 py-2" :class="pkg.flight_info.is_direct ? 'bg-emerald-50' : 'bg-gray-50'">
+                                    <p class="text-[10px] uppercase tracking-wider text-gray-400">Route</p>
+                                    <p class="text-sm font-semibold" :class="pkg.flight_info.is_direct ? 'text-emerald-700' : 'text-gray-900'">{{ pkg.flight_info.is_direct ? 'Direct' : 'With Transit' }}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Meal Plan -->
+                        <div v-if="pkg.meal_plan && pkg.meal_plan !== 'none'" class="border-b border-gray-100 px-6 py-5">
+                            <h3 class="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-700">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4 text-gray-400"><path d="M18.375 2.25c-1.035 0-1.875.84-1.875 1.875v15.75c0 1.035.84 1.875 1.875 1.875h.375a.75.75 0 00.75-.75V3a.75.75 0 00-.75-.75h-.375zM9.75 8.875c0-1.036.84-1.875 1.875-1.875h.375a.75.75 0 00.75-.75v-.375a.75.75 0 00-.75-.75H11.25C9.18 5.125 7.5 6.805 7.5 8.875v1.2a4.5 4.5 0 01-1.884 3.668l-.1.067a.75.75 0 000 1.27l.1.066A4.5 4.5 0 017.5 18.875v1.2c0 2.07 1.68 3.75 3.75 3.75h.375a.75.75 0 00.75-.75v-.375a.75.75 0 00-.75-.75H11.25a2.25 2.25 0 01-2.25-2.25v-1.2a6 6 0 00-2.512-4.89l-.1-.067A6 6 0 009 11.075v-1.2z" /></svg>
+                                Meals
+                            </h3>
+                            <span class="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700 ring-1 ring-emerald-200">
+                                {{ mealPlanLabel[pkg.meal_plan] }}
+                            </span>
+                        </div>
+
+                        <!-- Visa -->
+                        <div v-if="pkg.visa_info" class="px-6 py-5">
+                            <h3 class="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-700">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4 text-gray-400"><path fill-rule="evenodd" d="M1 4.75C1 3.784 1.784 3 2.75 3h14.5c.966 0 1.75.784 1.75 1.75v10.515a1.75 1.75 0 01-1.75 1.75h-1.5c-.078 0-.155-.005-.23-.015H4.48c-.075.01-.152.015-.23.015h-1.5A1.75 1.75 0 011 15.265V4.75zm16.5 7.385V11.01a.25.25 0 00-.25-.25h-1.5a.25.25 0 00-.25.25v1.125c0 .138.112.25.25.25h1.5a.25.25 0 00.25-.25zm0 2.005a.25.25 0 00-.25-.25h-1.5a.25.25 0 00-.25.25v1.125c0 .414.336.75.75.75H17a.75.75 0 00.5-.193v-.932zm-15 1.682V4.75a.25.25 0 01.25-.25h14.5a.25.25 0 01.25.25v1.5H2.5v-.25zm0 1.75H7v1H2.5v-1zm0 2H7v1H2.5v-1zm0 2H7v1H2.5v-1zm5-5h4.75v1H7.5v-1zm0 2h4.75v1H7.5v-1zm0 2h4.75v1H7.5v-1z" clip-rule="evenodd" /></svg>
+                                Visa
+                            </h3>
+                            <div class="flex flex-wrap gap-3">
+                                <div class="rounded-lg px-3 py-2" :class="pkg.visa_info.included === 'yes' ? 'bg-emerald-50' : 'bg-gray-50'">
+                                    <p class="text-[10px] uppercase tracking-wider text-gray-400">Status</p>
+                                    <p class="text-sm font-semibold" :class="pkg.visa_info.included === 'yes' ? 'text-emerald-700' : 'text-gray-900'">{{ visaIncludedLabel[pkg.visa_info.included] ?? '—' }}</p>
+                                </div>
+                                <div v-if="pkg.visa_info.type" class="rounded-lg bg-gray-50 px-3 py-2">
+                                    <p class="text-[10px] uppercase tracking-wider text-gray-400">Type</p>
+                                    <p class="text-sm font-semibold text-gray-900">{{ pkg.visa_info.type }}</p>
+                                </div>
+                                <div v-if="pkg.visa_info.processing_days" class="rounded-lg bg-gray-50 px-3 py-2">
+                                    <p class="text-[10px] uppercase tracking-wider text-gray-400">Processing</p>
+                                    <p class="text-sm font-semibold text-gray-900">{{ pkg.visa_info.processing_days }} days</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Agency Info -->
                     <div v-if="pkg.tenant" class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
                         <h2 class="text-sm font-bold text-gray-900 mb-4">Operated By</h2>
@@ -274,14 +461,19 @@ const submit = () => {
                             <div>
                                 <label class="block text-xs font-semibold text-gray-700 mb-1.5">Number of Pax *</label>
                                 <div class="flex items-center gap-3">
-                                    <button type="button" class="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition" @click="form.pax = Math.max(1, form.pax - 1)">
+                                    <button type="button" class="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition" @click="form.pax = Math.max(minPax, form.pax - 1)">
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4"><path fill-rule="evenodd" d="M4 10a.75.75 0 01.75-.75h10.5a.75.75 0 010 1.5H4.75A.75.75 0 014 10z" clip-rule="evenodd" /></svg>
                                     </button>
                                     <span class="text-lg font-bold text-gray-900 w-8 text-center">{{ form.pax }}</span>
-                                    <button type="button" class="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition" @click="form.pax = Math.min(pkg.available_seats, form.pax + 1)">
+                                    <button type="button" class="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition" @click="form.pax = Math.min(maxPax, form.pax + 1)">
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4"><path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" /></svg>
                                     </button>
                                 </div>
+                                <p v-if="minPax > 1 || pkg.max_pax" class="mt-1 text-xs text-gray-400">
+                                    <span v-if="minPax > 1">Min {{ minPax }} pax</span>
+                                    <span v-if="minPax > 1 && pkg.max_pax"> · </span>
+                                    <span v-if="pkg.max_pax">Max {{ pkg.max_pax }} pax</span>
+                                </p>
                                 <p v-if="form.errors.pax" class="mt-1 text-xs text-red-500">{{ form.errors.pax }}</p>
                             </div>
 
