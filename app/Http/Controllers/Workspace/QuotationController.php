@@ -69,28 +69,14 @@ class QuotationController extends Controller
 
     public function show(Tenant $tenant, Quotation $quotation): Response
     {
-        $quotation->load(['customer', 'package']);
-
-        $items = [];
-        if ($quotation->package) {
-            $items[] = [
-                'description' => $quotation->package->name,
-                'qty' => 1,
-                'rate' => $quotation->package->price,
-                'amount' => $quotation->package->price,
-            ];
-        }
+        $quotation->load(['customer']);
 
         return Inertia::render('Workspace/Quotations/ShowPage', [
             'workspace' => $tenant->only(['id', 'name', 'slug']),
             'quotation' => array_merge($quotation->toArray(), [
-                'public_id' => $quotation->quotation_number,
-                'sub_total' => $quotation->subtotal,
-                'total' => $quotation->total_amount,
-                'notes' => $quotation->remarks,
-                'expiry_date' => $quotation->valid_until,
-                'subject' => $quotation->package?->name,
-                'items' => $items,
+                'public_id' => $quotation->public_id,
+                'notes' => $quotation->notes,
+                'items' => $quotation->items ?? [],
             ]),
         ]);
     }
@@ -141,30 +127,31 @@ class QuotationController extends Controller
     {
         $quotation->load(['customer']);
 
-        $items = [];
-        if ($quotation->package) {
-            $items[] = [
-                'description' => $quotation->package->name,
-                'qty' => 1,
-                'rate' => $quotation->package->price,
-                'amount' => $quotation->package->price,
-            ];
+        $logoDataUri = null;
+        if ($tenant->logo_path && \Storage::disk('public')->exists($tenant->logo_path)) {
+            $ext = strtolower(pathinfo($tenant->logo_path, PATHINFO_EXTENSION));
+            $mime = $ext === 'jpg' ? 'jpeg' : $ext;
+            $logoDataUri = 'data:image/' . $mime . ';base64,' . base64_encode(\Storage::disk('public')->get($tenant->logo_path));
         }
 
         $data = [
-            'workspace' => $tenant->only(['id', 'name', 'slug', 'logo_url']),
+            'workspace' => array_merge(
+                $tenant->only([
+                    'name', 'company_name', 'company_address', 'company_phone',
+                    'company_email', 'company_website',
+                    'bank_name', 'bank_account_name', 'bank_account_number', 'bank_swift',
+                    'quotation_terms',
+                ]),
+                ['logo_url' => $logoDataUri]
+            ),
             'quotation' => array_merge($quotation->toArray(), [
-                'public_id' => $quotation->quotation_number,
-                'sub_total' => $quotation->subtotal,
-                'total' => $quotation->total_amount,
-                'notes' => $quotation->remarks,
-                'expiry_date' => $quotation->valid_until,
-                'subject' => $quotation->package?->name,
-                'items' => $items,
+                'public_id' => $quotation->public_id,
+                'notes' => $quotation->notes,
+                'items' => $quotation->items ?? [],
             ]),
         ];
 
         $pdf = \PDF::loadView('pdf.quotation', $data);
-        return $pdf->download('quotation-' . $quotation->quotation_number . '.pdf');
+        return $pdf->download('quotation-' . $quotation->public_id . '.pdf');
     }
 }

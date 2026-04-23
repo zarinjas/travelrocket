@@ -63,7 +63,7 @@ const expiryDate = computed(() => {
                         Download PDF
                     </a>
                     <Link
-                        v-if="quotation.status !== 'Closed'"
+                        v-if="quotation.status !== 'Closed' && !isExpired"
                         :href="route('quotations.convert', { tenant: workspace.slug, quotation: quotation.id })"
                         class="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800"
                     >

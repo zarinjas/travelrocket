@@ -79,8 +79,8 @@ class InvoiceController extends Controller
                 }
             }
 
-            if ($request->filled('quote_id')) {
-                Quotation::where('id', $request->quote_id)->update(['status' => 'Closed']);
+            if (!empty($validated['quote_id'])) {
+                Quotation::where('id', $validated['quote_id'])->update(['status' => 'Closed']);
             }
 
             return redirect()
@@ -91,37 +91,15 @@ class InvoiceController extends Controller
 
     public function show(Tenant $tenant, Invoice $invoice): Response
     {
-        $invoice->load(['customer', 'quotation.package', 'booking.package']);
-
-        $package = $invoice->booking?->package ?? $invoice->quotation?->package;
-        $items = [];
-        if ($package) {
-            $items[] = [
-                'description' => $package->name,
-                'qty' => 1,
-                'rate' => $package->price,
-                'amount' => $package->price,
-            ];
-        }
-
-        $quotationData = null;
-        if ($invoice->quotation) {
-            $quotationData = array_merge($invoice->quotation->toArray(), [
-                'public_id' => $invoice->quotation->quotation_number,
-            ]);
-        }
+        $invoice->load(['customer', 'quotation', 'booking.package']);
 
         return Inertia::render('Workspace/Invoices/ShowPage', [
             'workspace' => $tenant->only(['id', 'name', 'slug']),
             'invoice' => array_merge($invoice->toArray(), [
-                'public_id' => $invoice->invoice_number,
-                'sub_total' => $invoice->subtotal,
-                'total' => $invoice->total_amount,
-                'paid_amount' => $invoice->amount_paid,
-                'notes' => $invoice->remarks,
-                'subject' => $package?->name,
-                'items' => $items,
-                'quotation' => $quotationData,
+                'public_id' => $invoice->public_id,
+                'paid_amount' => $invoice->paid_amount,
+                'notes' => $invoice->notes,
+                'items' => $invoice->items ?? [],
             ]),
         ]);
     }
@@ -137,17 +115,17 @@ class InvoiceController extends Controller
         ]);
 
         return DB::transaction(function () use ($request, $tenant, $invoice, $validated) {
-            $prevPaid = $invoice->amount_paid ?? 0;
+            $prevPaid = $invoice->paid_amount ?? 0;
             $newPaidTotal = $prevPaid + $validated['amount'];
-            
+
             $status = 'Partially Paid';
-            if ($newPaidTotal >= $invoice->total_amount) {
+            if ($newPaidTotal >= $invoice->total) {
                 $status = 'Fully Paid';
-                $newPaidTotal = $invoice->total_amount; // Cap at total
+                $newPaidTotal = $invoice->total;
             }
 
             $editData = [
-                'amount_paid' => $newPaidTotal,
+                'paid_amount' => $newPaidTotal,
                 'status' => $status,
                 'payment_details' => array_merge($invoice->payment_details ?? [], [
                     [
@@ -227,33 +205,34 @@ class InvoiceController extends Controller
 
     public function generatePdf(Tenant $tenant, Invoice $invoice)
     {
-        $invoice->load(['customer', 'quotation.package', 'booking.package']);
+        $invoice->load(['customer']);
 
-        $package = $invoice->booking?->package ?? $invoice->quotation?->package;
-        $items = [];
-        if ($package) {
-            $items[] = [
-                'description' => $package->name,
-                'qty' => 1,
-                'rate' => $package->price,
-                'amount' => $package->price,
-            ];
+        $logoDataUri = null;
+        if ($tenant->logo_path && \Storage::disk('public')->exists($tenant->logo_path)) {
+            $ext = strtolower(pathinfo($tenant->logo_path, PATHINFO_EXTENSION));
+            $mime = $ext === 'jpg' ? 'jpeg' : $ext;
+            $logoDataUri = 'data:image/' . $mime . ';base64,' . base64_encode(\Storage::disk('public')->get($tenant->logo_path));
         }
 
         $data = [
-            'workspace' => $tenant->only(['id', 'name', 'slug', 'logo_url']),
+            'workspace' => array_merge(
+                $tenant->only([
+                    'name', 'company_name', 'company_address', 'company_phone',
+                    'company_email', 'company_website',
+                    'bank_name', 'bank_account_name', 'bank_account_number', 'bank_swift',
+                    'quotation_terms',
+                ]),
+                ['logo_url' => $logoDataUri]
+            ),
             'invoice' => array_merge($invoice->toArray(), [
-                'public_id' => $invoice->invoice_number,
-                'sub_total' => $invoice->subtotal,
-                'total' => $invoice->total_amount,
-                'paid_amount' => $invoice->amount_paid,
-                'notes' => $invoice->remarks,
-                'subject' => $package?->name,
-                'items' => $items,
+                'public_id' => $invoice->public_id,
+                'paid_amount' => $invoice->paid_amount,
+                'notes' => $invoice->notes,
+                'items' => $invoice->items ?? [],
             ]),
         ];
 
         $pdf = \PDF::loadView('pdf.invoice', $data);
-        return $pdf->download('invoice-' . $invoice->invoice_number . '.pdf');
+        return $pdf->download('invoice-' . $invoice->public_id . '.pdf');
     }
 }

@@ -110,7 +110,7 @@ class CashflowController extends Controller
             ->map(fn($i) => [
                 'id' => $i->id,
                 'customer_name' => $i->customer->name ?? 'Unknown',
-                'invoice_number' => $i->invoice_number,
+                'invoice_number' => $i->public_id,
                 'balance_due' => $i->total - $i->paid_amount,
                 'days_overdue' => Carbon::parse($i->due_date)->isPast() ? Carbon::parse($i->due_date)->diffInDays(now()) : 0,
                 'urgency' => Carbon::parse($i->due_date)->diffInDays(now(), false) > 30 ? 'critical' : (Carbon::parse($i->due_date)->isPast() ? 'high' : 'medium')
@@ -142,7 +142,7 @@ class CashflowController extends Controller
                 return [
                     'id' => $i->id,
                     'customer_name' => $i->customer->name ?? 'Unknown',
-                    'invoice_number' => $i->invoice_number,
+                    'invoice_number' => $i->public_id,
                     'balance_due' => $i->total - $i->paid_amount,
                     'days_overdue' => $daysOverdue,
                     'stage' => $stage,
@@ -178,7 +178,7 @@ class CashflowController extends Controller
             fputcsv($file, $csvHeader);
             foreach ($invoices as $inv) {
                 fputcsv($file, [
-                    $inv->invoice_number,
+                    $inv->public_id,
                     $inv->customer->name ?? 'Unknown',
                     $inv->issued_date,
                     $inv->due_date,
@@ -215,7 +215,7 @@ class CashflowController extends Controller
                 $action = $days > 14 ? 'Final Notice' : ($days > 0 ? 'Friendly Reminder' : 'Upcoming Follow-up');
                 
                 fputcsv($file, [
-                    $inv->invoice_number,
+                    $inv->public_id,
                     $inv->customer->name ?? 'Unknown',
                     number_format($inv->total - $inv->paid_amount, 2),
                     $days,

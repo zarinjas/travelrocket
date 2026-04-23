@@ -11,28 +11,34 @@ const props = defineProps({
     fromQuote: Object,
 });
 
-const form = useForm({
-    quote_id: props.fromQuote?.id || null,
-    customer_id: props.fromQuote?.customer_id || null,
-    manual_customer_data: props.fromQuote?.manual_customer_data || {
-        name: '',
-        address: '',
-        phone: '',
-        email: '',
-    },
-    subject: props.fromQuote?.subject || '',
-    items: props.fromQuote?.items?.map(item => ({
-        ...item,
-        package_id: item.package_id || null
-    })) || [
-        { package_id: null, description: '', qty: 1, rate: 0, amount: 0 }
-    ],
-    sub_total: props.fromQuote?.sub_total || 0,
-    total: props.fromQuote?.total || 0,
-    deposit_amount: 0,
-    notes: props.fromQuote?.notes || '',
-    terms: props.fromQuote?.terms || '',
-});
+const initializeForm = () => {
+    const quoteId = props.fromQuote ? (props.fromQuote.id || null) : null;
+    return {
+        quote_id: quoteId,
+        customer_id: props.fromQuote?.customer_id || null,
+        manual_customer_data: props.fromQuote?.manual_customer_data || {
+            name: '',
+            address: '',
+            phone: '',
+            email: '',
+        },
+        subject: props.fromQuote?.subject || '',
+        items: props.fromQuote?.items?.map(item => ({
+            ...item,
+            package_id: item.package_id || null,
+            amount: item.amount ?? (Number(item.qty || 0) * Number(item.rate || 0)),
+        })) || [
+            { package_id: null, description: '', qty: 1, rate: 0, amount: 0 }
+        ],
+        sub_total: props.fromQuote?.sub_total || 0,
+        total: props.fromQuote?.total || 0,
+        deposit_amount: 0,
+        notes: props.fromQuote?.notes || '',
+        terms: props.fromQuote?.terms || '',
+    };
+};
+
+const form = useForm(initializeForm());
 
 const isManualCustomer = ref(!!props.fromQuote?.manual_customer_data?.name);
 

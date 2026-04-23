@@ -53,7 +53,7 @@ class Invoice extends Model
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(Customer::class, 'lead_customer_id');
+        return $this->belongsTo(Customer::class, 'customer_id');
     }
 
     public function booking(): BelongsTo
@@ -63,7 +63,7 @@ class Invoice extends Model
 
     public function quotation(): BelongsTo
     {
-        return $this->belongsTo(Quotation::class, 'quotation_id');
+        return $this->belongsTo(Quotation::class, 'quote_id');
     }
 
     public function reminderLogs(): HasMany
@@ -73,6 +73,6 @@ class Invoice extends Model
 
     public function getDueAmountAttribute(): float
     {
-        return (float)$this->total_amount - (float)$this->amount_paid;
+        return (float)$this->total - (float)$this->paid_amount;
     }
 }

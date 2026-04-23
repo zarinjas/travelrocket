@@ -4,7 +4,28 @@
       "Bash(npx vite *)",
       "Bash(php artisan *)",
       "Bash(grep -A5 \"fillable\\\\|protected \\\\$\")",
-      "Bash(grep -E \"\\\\.\\(blade\\\\.php|php\\)$\")"
+      "Bash(grep -E \"\\\\.\\(blade\\\\.php|php\\)$\")",
+      "Bash(grep -E \"\\\\.\\(php|js|ts\\)$\")",
+      "Bash(php -l /Users/user/Sites/travelrocket-saas/app/Http/Controllers/Workspace/InvoiceController.php)",
+      "Bash(php -l /Users/user/Sites/travelrocket-saas/app/Http/Controllers/Workspace/QuotationController.php)",
+      "Bash(php -l /Users/user/Sites/travelrocket-saas/app/Models/Invoice.php)",
+      "Bash(php -l /Users/user/Sites/travelrocket-saas/app/Models/Quotation.php)",
+      "Bash(xargs ls *)",
+      "Bash(mkdir -p /Users/user/Sites/travelrocket-saas/public/fonts/poppins)",
+      "Bash(curl -s -o Poppins-Regular.ttf \"https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Regular.ttf\")",
+      "Bash(curl -s -o Poppins-Medium.ttf \"https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Medium.ttf\")",
+      "Bash(curl -s -o Poppins-SemiBold.ttf \"https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-SemiBold.ttf\")",
+      "Bash(curl -s -o Poppins-Bold.ttf \"https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Bold.ttf\")",
+      "Bash(curl -L -o Poppins-Regular.ttf \"https://fonts.gstatic.com/s/poppins/v21/pxiEyp8kv8JHgFVrJJfecg.woff2\")",
+      "Bash(curl -A \"Mozilla/5.0 \\(compatible; MSIE 9.0; Windows NT 6.1; Trident/5.0\\)\" \"https://fonts.googleapis.com/css?family=Poppins:400,500,600,700\")",
+      "Bash(curl -L -o Poppins-Regular.woff \"https://fonts.gstatic.com/l/font?kit=pxiEyp8kv8JHgFVrJJfedA&skey=87759fb096548f6d&v=v24\")",
+      "Bash(curl -L -o Poppins-Medium.woff \"https://fonts.gstatic.com/l/font?kit=pxiByp8kv8JHgFVrLGT9Z1xlEw&skey=d4526a9b64c21b87&v=v24\")",
+      "Bash(curl -L -o Poppins-SemiBold.woff \"https://fonts.gstatic.com/l/font?kit=pxiByp8kv8JHgFVrLEj6Z1xlEw&skey=ce7ef9d62ca89319&v=v24\")",
+      "Bash(curl -L -o Poppins-Bold.woff \"https://fonts.gstatic.com/l/font?kit=pxiByp8kv8JHgFVrLCz7Z1xlEw&skey=cea76fe63715a67a&v=v24\")",
+      "Bash(npm list *)",
+      "Bash(python3 -c ' *)",
+      "Bash(python3 -c \" import subprocess result = subprocess.run\\(['python3', '-c', 'import fonttools'], capture_output=True\\) print\\(result.returncode\\) \")",
+      "Bash(php -r ' *)"
     ]
   }
 }
