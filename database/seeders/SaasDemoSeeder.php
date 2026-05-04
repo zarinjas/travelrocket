@@ -13,7 +13,6 @@ use App\Models\Package;
 use App\Models\Payment;
 use App\Models\Quotation;
 use App\Models\Tenant;
-use App\Models\TenantProfileChangeLog;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -211,54 +210,76 @@ class SaasDemoSeeder extends Seeder
                     ]);
                 });
 
-            $allInvoices = collect();
-
-            $bookings->take(18)->each(function (Booking $booking, int $index) use ($tenant, $owner, &$allInvoices): void {
-                $validUntil = now()->addDays(random_int(3, 20));
+            $bookings->take(18)->each(function (Booking $booking, int $index) use ($tenant, $owner): void {
+                $expiryDate = now()->addDays(random_int(3, 20));
+                $status = Quotation::STATUS_DRAFT;
                 if ($index % 5 === 0) {
-                    $validUntil = now()->subDays(random_int(1, 5));
+                    $expiryDate = now()->subDays(random_int(1, 5));
+                    $status = Quotation::STATUS_EXPIRED;
+                } elseif ($index % 4 === 0) {
+                    $status = Quotation::STATUS_SENT;
+                } elseif ($index % 6 === 0) {
+                    $status = Quotation::STATUS_CONVERTED;
                 }
 
+                $quotationItems = [
+                    [
+                        'description' => $booking->package?->name . "\n" . ($booking->package?->destination ?: 'Demo itinerary'),
+                        'qty' => (int) max(1, $booking->total_pax),
+                        'rate' => (float) $booking->package?->price,
+                        'amount' => (float) $booking->total_price,
+                    ],
+                ];
+                $quotationTotal = round((float) $booking->total_price * 0.95, 2);
                 $quotation = Quotation::query()->updateOrCreate(
-                    ['quotation_number' => sprintf('QT-DEMO-%04d', $index + 1)],
+                    ['public_id' => sprintf('EST-%06d', $index + 1)],
                     [
                         'tenant_id' => $tenant->id,
-                        'package_id' => $booking->package_id,
-                        'lead_customer_id' => $booking->lead_customer_id,
-                        'subtotal' => $booking->total_price,
-                        'discount' => round((float) $booking->total_price * 0.05, 2),
-                        'total_amount' => round((float) $booking->total_price * 0.95, 2),
-                        'remarks' => 'Demo quotation for dashboard and archive view.',
-                        'status' => $validUntil->isPast() ? Quotation::STATUS_EXPIRED : Quotation::STATUS_PENDING,
-                        'valid_until' => $validUntil->toDateString(),
+                        'customer_id' => $booking->lead_customer_id,
+                        'subject' => $booking->package?->name . ' quotation',
+                        'items' => $quotationItems,
+                        'sub_total' => (float) $booking->total_price,
+                        'total' => $quotationTotal,
+                        'status' => $status,
+                        'expiry_date' => $expiryDate->toDateString(),
+                        'notes' => 'Demo quotation for dashboard and archive view.',
+                        'terms' => 'Valid for 7 days from issue date.',
                     ]
                 );
 
-                $invoiceTotal = (float) $quotation->total_amount;
+                $invoiceTotal = (float) $quotation->total;
                 $invoicePaid = round($invoiceTotal * [0, 0.4, 0.7, 1][array_rand([0, 0.4, 0.7, 1])], 2);
-                $invoiceStatus = Invoice::STATUS_UNPAID;
+                $invoiceStatus = 'Unpaid';
                 if ($invoicePaid > 0 && $invoicePaid < $invoiceTotal) {
-                    $invoiceStatus = Invoice::STATUS_PARTIAL;
+                    $invoiceStatus = 'Partially Paid';
                 }
                 if ($invoicePaid >= $invoiceTotal && $invoiceTotal > 0) {
-                    $invoiceStatus = Invoice::STATUS_PAID;
+                    $invoiceStatus = 'Fully Paid';
+                }
+                $issuedDate = now()->subDays(random_int(1, 45));
+                $dueDate = (clone $issuedDate)->addDays(random_int(7, 21));
+                if ($invoiceStatus !== 'Fully Paid' && $dueDate->isPast()) {
+                    $invoiceStatus = 'Overdue';
                 }
 
                 $invoice = Invoice::query()->updateOrCreate(
-                    ['invoice_number' => sprintf('INV-DEMO-%04d', $index + 1)],
+                    ['public_id' => sprintf('INV-%06d', $index + 1)],
                     [
                         'tenant_id' => $tenant->id,
-                        'quotation_id' => $quotation->id,
+                        'quote_id' => $quotation->id,
                         'booking_id' => $booking->id,
                         'lead_customer_id' => $booking->lead_customer_id,
-                        'subtotal' => $quotation->subtotal,
-                        'discount' => $quotation->discount,
-                        'total_amount' => $invoiceTotal,
-                        'amount_paid' => $invoicePaid,
+                        'customer_id' => $booking->lead_customer_id,
+                        'subject' => $booking->package?->name . ' invoice',
+                        'items' => $quotationItems,
+                        'sub_total' => (float) $quotation->sub_total,
+                        'total' => $invoiceTotal,
+                        'paid_amount' => $invoicePaid,
                         'status' => $invoiceStatus,
-                        'remarks' => 'Demo invoice for finance module.',
-                        'issued_date' => now()->subDays(random_int(1, 45))->toDateString(),
-                        'due_date' => now()->addDays(random_int(-15, 20))->toDateString(),
+                        'notes' => 'Demo invoice for finance module.',
+                        'terms' => 'Payment due within 14 days of issue date.',
+                        'issued_date' => $issuedDate->toDateString(),
+                        'due_date' => $dueDate->toDateString(),
                     ]
                 );
 
@@ -278,7 +299,6 @@ class SaasDemoSeeder extends Seeder
                     ]);
                 }
 
-                $allInvoices->push($invoice);
             });
 
             CustomerBlastTemplate::query()->updateOrCreate(
@@ -318,19 +338,6 @@ class SaasDemoSeeder extends Seeder
                 ]
             );
 
-            TenantProfileChangeLog::query()->updateOrCreate(
-                [
-                    'tenant_id' => $tenant->id,
-                    'summary' => 'Initial demo branding setup',
-                ],
-                [
-                    'user_id' => $owner->id,
-                    'changes' => [
-                        'company_name' => ['old' => null, 'new' => $tenant->company_name],
-                        'company_email' => ['old' => null, 'new' => $tenant->company_email],
-                    ],
-                ]
-            );
         });
     }
 }

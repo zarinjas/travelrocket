@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\Customer;
-use App\Models\Package;
 use App\Models\Quotation;
 use App\Models\Tenant;
 use Illuminate\Database\Seeder;
@@ -15,21 +14,6 @@ class QuotationDemoSeeder extends Seeder
         $tenant = Tenant::query()->firstOrCreate(
             ['slug' => 'demo-travel-agency'],
             ['name' => 'Demo Travel Agency']
-        );
-
-        $package = Package::query()->updateOrCreate(
-            [
-                'tenant_id' => $tenant->id,
-                'name' => 'Umrah Plus Istanbul',
-            ],
-            [
-                'category' => 'Umrah',
-                'type' => 'Umrah',
-                'destination' => 'Makkah, Madinah, Istanbul',
-                'price' => 12990,
-                'status' => Package::STATUS_PUBLISHED,
-                'description' => '14D12N package with guided itinerary.',
-            ]
         );
 
         $leadCustomer = Customer::query()->updateOrCreate(
@@ -47,49 +31,62 @@ class QuotationDemoSeeder extends Seeder
             ]
         );
 
-        Quotation::query()->updateOrCreate(
-            ['quotation_number' => 'QT-20260404-901'],
+        $quotations = [
             [
-                'tenant_id' => $tenant->id,
-                'package_id' => $package->id,
-                'lead_customer_id' => $leadCustomer->id,
-                'subtotal' => 12990,
-                'discount' => 500,
-                'total_amount' => 12490,
-                'remarks' => 'Promo Ramadan special rate.',
-                'status' => Quotation::STATUS_PENDING,
-                'valid_until' => now()->addDays(10)->toDateString(),
-            ]
-        );
+                'public_id' => 'EST-000901',
+                'subject' => 'Ramadan Umrah Special',
+                'items' => [
+                    ['description' => "Umrah Plus Istanbul\n14D12N package", 'qty' => 2, 'rate' => 6490, 'amount' => 12980],
+                    ['description' => "Visa & handling", 'qty' => 2, 'rate' => 150, 'amount' => 300],
+                ],
+                'sub_total' => 13280,
+                'total' => 12490,
+                'status' => Quotation::STATUS_DRAFT,
+                'expiry_date' => now()->addDays(10)->toDateString(),
+                'notes' => 'Promo Ramadan special rate.',
+            ],
+            [
+                'public_id' => 'EST-000902',
+                'subject' => 'Expired Sample Quote',
+                'items' => [
+                    ['description' => "Langkawi Family Break\n3D2N package", 'qty' => 4, 'rate' => 399, 'amount' => 1596],
+                ],
+                'sub_total' => 1596,
+                'total' => 1596,
+                'status' => Quotation::STATUS_EXPIRED,
+                'expiry_date' => now()->subDays(2)->toDateString(),
+                'notes' => 'This quotation is already expired.',
+            ],
+            [
+                'public_id' => 'EST-000903',
+                'subject' => 'Converted Sample Quote',
+                'items' => [
+                    ['description' => "Japan Golden Route\n8D6N package", 'qty' => 2, 'rate' => 4495, 'amount' => 8990],
+                ],
+                'sub_total' => 8990,
+                'total' => 8490,
+                'status' => Quotation::STATUS_CONVERTED,
+                'expiry_date' => now()->subDays(7)->toDateString(),
+                'notes' => 'Converted sample quotation.',
+            ],
+        ];
 
-        Quotation::query()->updateOrCreate(
-            ['quotation_number' => 'QT-20260404-902'],
-            [
-                'tenant_id' => $tenant->id,
-                'package_id' => $package->id,
-                'lead_customer_id' => $leadCustomer->id,
-                'subtotal' => 12990,
-                'discount' => 0,
-                'total_amount' => 12990,
-                'remarks' => 'Will auto-expire via scheduler due to past valid date.',
-                'status' => Quotation::STATUS_PENDING,
-                'valid_until' => now()->subDays(2)->toDateString(),
-            ]
-        );
-
-        Quotation::query()->updateOrCreate(
-            ['quotation_number' => 'QT-20260404-903'],
-            [
-                'tenant_id' => $tenant->id,
-                'package_id' => $package->id,
-                'lead_customer_id' => $leadCustomer->id,
-                'subtotal' => 12990,
-                'discount' => 1000,
-                'total_amount' => 11990,
-                'remarks' => 'Converted sample quotation.',
-                'status' => 'converted',
-                'valid_until' => now()->subDays(7)->toDateString(),
-            ]
-        );
+        foreach ($quotations as $data) {
+            Quotation::query()->updateOrCreate(
+                ['public_id' => $data['public_id']],
+                [
+                    'tenant_id' => $tenant->id,
+                    'customer_id' => $leadCustomer->id,
+                    'subject' => $data['subject'],
+                    'items' => $data['items'],
+                    'sub_total' => $data['sub_total'],
+                    'total' => $data['total'],
+                    'status' => $data['status'],
+                    'expiry_date' => $data['expiry_date'],
+                    'notes' => $data['notes'],
+                    'terms' => 'Payment due within 7 days of issue date.',
+                ]
+            );
+        }
     }
 }

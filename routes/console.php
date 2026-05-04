@@ -35,12 +35,12 @@ Artisan::command('customers:purge-soft-deleted {--days=30}', function (): void {
 
 Artisan::command('quotations:expire', function (): void {
     $expired = Quotation::query()
-        ->where('status', Quotation::STATUS_PENDING)
-        ->whereDate('valid_until', '<', now()->toDateString())
+        ->where('status', Quotation::STATUS_DRAFT)
+        ->whereDate('expiry_date', '<', now()->toDateString())
         ->update(['status' => Quotation::STATUS_EXPIRED]);
 
     $this->info("Marked {$expired} quotation(s) as expired.");
-})->purpose('Mark pending quotations past valid_until as expired');
+})->purpose('Mark draft quotations past expiry_date as expired');
 
 Schedule::command('quotations:expire')
     ->dailyAt('01:30')

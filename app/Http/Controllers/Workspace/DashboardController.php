@@ -73,10 +73,10 @@ class DashboardController extends Controller
         // Quotation metrics
         $allQuotations = Quotation::query()->get();
         $expiringQuotations = $allQuotations
-            ->where('status', 'Sent')
-            ->filter(fn (Quotation $q) => $q->valid_until && \Carbon\Carbon::parse($q->valid_until)->isBetween(now()->toDateString(), now()->addDays(7)->toDateString()))
+            ->whereIn('status', [Quotation::STATUS_DRAFT, Quotation::STATUS_SENT])
+            ->filter(fn (Quotation $q) => $q->expiry_date && \Carbon\Carbon::parse($q->expiry_date)->isBetween(now()->toDateString(), now()->addDays(7)->toDateString()))
             ->count();
-        $expiredQuotations = $allQuotations->where('status', 'Expired')->count();
+        $expiredQuotations = $allQuotations->where('status', Quotation::STATUS_EXPIRED)->count();
 
         // Sales chart — pre-compute last 7 days on the server to avoid timezone issues
         $salesChart = collect(range(6, 0))->map(function (int $daysAgo) use ($bookings) {

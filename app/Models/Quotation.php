@@ -8,6 +8,15 @@ use Illuminate\Support\Str;
 
 class Quotation extends Model
 {
+    public const STATUS_DRAFT = 'Draft';
+    public const STATUS_SENT = 'Sent';
+    public const STATUS_ACCEPTED = 'Accepted';
+    public const STATUS_CONVERTED = 'Converted';
+    public const STATUS_EXPIRED = 'Expired';
+    public const STATUS_CLOSED = 'Closed';
+    public const STATUS_REJECTED = 'Rejected';
+    public const STATUS_PENDING = 'Pending';
+
     protected $fillable = [
         'tenant_id',
         'public_id',

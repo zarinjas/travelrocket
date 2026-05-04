@@ -9,6 +9,14 @@ use Illuminate\Support\Str;
 
 class Invoice extends Model
 {
+    public const STATUS_UNPAID = 'Unpaid';
+    public const STATUS_PARTIAL = 'Partially Paid';
+    public const STATUS_PAID = 'Fully Paid';
+    public const STATUS_OVERDUE = 'Overdue';
+    public const STATUS_VOID = 'Void';
+    public const STATUS_CANCELLED = 'Cancelled';
+    public const STATUS_REFUNDED = 'Refunded';
+
     protected $fillable = [
         'tenant_id',
         'public_id',
