@@ -135,6 +135,7 @@ class PublicSiteController extends Controller
             $customer = Customer::query()->create([
                 'tenant_id' => $package->tenant_id,
                 'name' => $validated['name'],
+                'full_name' => $validated['name'],
                 'email' => $validated['email'],
                 'phone' => $validated['phone'],
             ]);
