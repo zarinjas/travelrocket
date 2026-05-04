@@ -11,7 +11,7 @@ const formatPrice = (price) => 'RM ' + Number(price).toLocaleString('en-MY', { m
 </script>
 
 <template>
-    <Head title="Booking Confirmed — TravelRocket" />
+    <Head title="Thank You - TravelRocket" />
 
     <div class="min-h-screen bg-gray-50">
 
@@ -36,8 +36,8 @@ const formatPrice = (price) => 'RM ' + Number(price).toLocaleString('en-MY', { m
                         <path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clip-rule="evenodd" />
                     </svg>
                 </div>
-                <h1 class="mt-4 text-2xl font-extrabold text-gray-900 sm:text-3xl">Booking Confirmed!</h1>
-                <p class="mt-2 text-sm text-gray-500">Your travel booking has been successfully processed.</p>
+                <h1 class="mt-4 text-2xl font-extrabold text-gray-900 sm:text-3xl">Thank you for your purchase!</h1>
+                <p class="mt-2 text-sm text-gray-500">Your dummy payment was approved and the booking is now confirmed.</p>
             </div>
 
             <!-- Booking Card -->
@@ -115,6 +115,11 @@ const formatPrice = (price) => 'RM ' + Number(price).toLocaleString('en-MY', { m
                             <span class="font-bold text-amber-600">{{ formatPrice(b.balance_due) }}</span>
                         </div>
 
+                        <div v-if="b.payment?.method" class="flex justify-between text-xs pt-1">
+                            <span class="text-gray-400">Payment Method</span>
+                            <span class="font-semibold text-gray-600">{{ b.payment.method }}</span>
+                        </div>
+
                         <div v-if="b.payment?.gateway_reference" class="flex justify-between text-xs pt-1">
                             <span class="text-gray-400">Transaction Ref</span>
                             <span class="font-mono text-gray-500">{{ b.payment.gateway_reference }}</span>
@@ -146,7 +151,7 @@ const formatPrice = (price) => 'RM ' + Number(price).toLocaleString('en-MY', { m
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4"><path fill-rule="evenodd" d="M17 10a.75.75 0 01-.75.75H5.612l4.158 3.96a.75.75 0 11-1.04 1.08l-5.5-5.25a.75.75 0 010-1.08l5.5-5.25a.75.75 0 111.04 1.08L5.612 9.25H16.25A.75.75 0 0117 10z" clip-rule="evenodd" /></svg>
                     Browse More Packages
                 </a>
-                <p class="text-xs text-gray-400">A confirmation email will be sent to {{ b.buyer_email }}</p>
+                <p class="text-xs text-gray-400">Demo receipt generated for {{ b.buyer_email }}</p>
             </div>
         </main>
     </div>

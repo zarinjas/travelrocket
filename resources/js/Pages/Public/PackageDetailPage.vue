@@ -29,9 +29,6 @@ const form = useForm({
     phone: '',
     pax: minPax,
     payment_type: 'full',
-    card_number: '4242 4242 4242 4242',
-    card_expiry: '12/28',
-    card_cvc: '123',
 });
 
 const totalPrice = computed(() => pkg.price * form.pax);
@@ -500,27 +497,6 @@ const submit = () => {
                                 </div>
                             </div>
 
-                            <!-- Dummy Card Fields -->
-                            <div class="rounded-xl bg-gray-50 p-4 ring-1 ring-gray-200">
-                                <p class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Payment Details (Demo)</p>
-                                <div class="space-y-3">
-                                    <div>
-                                        <label class="block text-[10px] font-semibold text-gray-500 mb-1">Card Number</label>
-                                        <input v-model="form.card_number" type="text" class="w-full rounded-lg border-0 bg-white px-3 py-2 text-sm text-gray-900 ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-blue-500" />
-                                    </div>
-                                    <div class="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label class="block text-[10px] font-semibold text-gray-500 mb-1">Expiry</label>
-                                            <input v-model="form.card_expiry" type="text" class="w-full rounded-lg border-0 bg-white px-3 py-2 text-sm text-gray-900 ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-blue-500" />
-                                        </div>
-                                        <div>
-                                            <label class="block text-[10px] font-semibold text-gray-500 mb-1">CVC</label>
-                                            <input v-model="form.card_cvc" type="text" class="w-full rounded-lg border-0 bg-white px-3 py-2 text-sm text-gray-900 ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-blue-500" />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
                             <!-- Summary -->
                             <div class="rounded-xl bg-blue-50 p-4 space-y-2">
                                 <div class="flex justify-between text-sm">
@@ -546,12 +522,12 @@ const submit = () => {
                                 :disabled="form.processing"
                                 class="w-full rounded-xl bg-blue-600 px-6 py-3.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                <span v-if="form.processing">Processing...</span>
-                                <span v-else>Pay {{ formatPrice(payableAmount) }} & Confirm Booking</span>
+                                <span v-if="form.processing">Preparing gateway...</span>
+                                <span v-else>Continue to Dummy Payment Gateway</span>
                             </button>
 
                             <p class="text-center text-[10px] text-gray-400">
-                                By proceeding you agree to the package terms and conditions.
+                                Payment is simulated for demo only. No real charge will be made.
                             </p>
                         </form>
 

@@ -148,9 +148,9 @@ class PublicSiteController extends Controller
                 'total_pax' => $validated['pax'],
                 'total_price' => $totalPrice,
                 'balance_due' => $balanceDue,
-                'booking_status' => 'confirmed',
-                'payment_status' => $balanceDue <= 0 ? 'paid' : 'partial',
-                'status' => 'confirmed',
+                'booking_status' => 'pending',
+                'payment_status' => 'unpaid',
+                'status' => 'pending',
                 'travel_date' => $package->start_date,
                 'departure_date' => $package->start_date,
                 'return_date' => $package->end_date,
@@ -164,16 +164,84 @@ class PublicSiteController extends Controller
                 'tenant_id' => $package->tenant_id,
                 'booking_id' => $booking->id,
                 'amount' => $paymentAmount,
-                'payment_method' => 'online_gateway',
+                'payment_method' => 'dummy_gateway',
                 'payment_type' => $validated['payment_type'],
                 'payment_date' => now()->toDateString(),
-                'gateway_reference' => 'MOCK-' . strtoupper(Str::random(12)),
-                'status' => 'success',
+                'gateway_reference' => 'PENDING-' . strtoupper(Str::random(10)),
+                'status' => 'pending',
             ]);
 
             $package->increment('current_bookings', $validated['pax']);
 
             return $booking;
+        });
+
+        return redirect()->route('booking.payment', $booking);
+    }
+
+    public function paymentGateway(Booking $booking): Response
+    {
+        $booking->load(['package.tenant:id,name,company_name,logo_path', 'payments']);
+
+        $payment = $booking->payments->first();
+        abort_unless($booking->source === 'b2c' && $payment, 404);
+
+        return Inertia::render('Public/DummyPaymentGatewayPage', [
+            'booking' => $this->paymentGatewayPayload($booking, $payment),
+            'paymentMethods' => [
+                [
+                    'id' => 'fpx',
+                    'name' => 'FPX Online Banking',
+                    'description' => 'Maybank2u, CIMB Clicks, Bank Islam, RHB, Public Bank',
+                ],
+                [
+                    'id' => 'card',
+                    'name' => 'Credit / Debit Card',
+                    'description' => 'Visa, Mastercard, AMEX demo authorization',
+                ],
+                [
+                    'id' => 'ewallet',
+                    'name' => 'E-Wallet',
+                    'description' => 'Touch n Go eWallet, GrabPay, Boost',
+                ],
+            ],
+            'banks' => ['Maybank2u', 'CIMB Clicks', 'Bank Islam', 'RHB Bank', 'Public Bank', 'Hong Leong Bank'],
+            'wallets' => ['Touch n Go eWallet', 'GrabPay', 'Boost'],
+        ]);
+    }
+
+    public function completePayment(Request $request, Booking $booking): RedirectResponse
+    {
+        $booking->load(['payments']);
+        $payment = $booking->payments->first();
+
+        abort_unless($booking->source === 'b2c' && $payment, 404);
+
+        $validated = $request->validate([
+            'payment_method' => ['required', 'in:fpx,card,ewallet'],
+            'bank' => ['nullable', 'string', 'max:80'],
+            'wallet' => ['nullable', 'string', 'max:80'],
+        ]);
+
+        DB::transaction(function () use ($booking, $payment, $validated) {
+            $methodLabels = [
+                'fpx' => 'FPX Online Banking',
+                'card' => 'Credit / Debit Card',
+                'ewallet' => 'E-Wallet',
+            ];
+
+            $payment->update([
+                'payment_method' => $methodLabels[$validated['payment_method']],
+                'payment_date' => now()->toDateString(),
+                'gateway_reference' => 'TRX-' . strtoupper(Str::random(12)),
+                'status' => 'success',
+            ]);
+
+            $booking->update([
+                'booking_status' => 'confirmed',
+                'payment_status' => $booking->balance_due > 0 ? 'partial' : 'paid',
+                'status' => 'confirmed',
+            ]);
         });
 
         return redirect()->route('booking.confirmation', $booking);
@@ -203,12 +271,40 @@ class PublicSiteController extends Controller
                 ],
                 'payment' => $booking->payments->first() ? [
                     'amount' => (float) $booking->payments->first()->amount,
+                    'method' => $booking->payments->first()->payment_method,
                     'payment_type' => $booking->payments->first()->payment_type,
                     'gateway_reference' => $booking->payments->first()->gateway_reference,
                     'payment_date' => $booking->payments->first()->payment_date?->format('d M Y'),
                 ] : null,
             ],
         ]);
+    }
+
+    protected function paymentGatewayPayload(Booking $booking, Payment $payment): array
+    {
+        return [
+            'id' => $booking->id,
+            'booking_number' => $booking->booking_number,
+            'buyer_name' => $booking->buyer_name,
+            'buyer_email' => $booking->buyer_email,
+            'total_pax' => $booking->total_pax,
+            'total_price' => (float) $booking->total_price,
+            'balance_due' => (float) $booking->balance_due,
+            'payment_status' => $booking->payment_status,
+            'package' => [
+                'id' => $booking->package?->id,
+                'name' => $booking->package?->name,
+                'destination' => $booking->package?->destination,
+                'start_date' => $booking->package?->start_date?->format('d M Y'),
+                'tenant_name' => $booking->package?->tenant?->company_name ?? $booking->package?->tenant?->name,
+                'tenant_logo_url' => $booking->package?->tenant?->logo_path ? '/storage/' . $booking->package->tenant->logo_path : null,
+            ],
+            'payment' => [
+                'amount' => (float) $payment->amount,
+                'payment_type' => $payment->payment_type,
+                'gateway_reference' => $payment->gateway_reference,
+            ],
+        ];
     }
 
     protected function modules(): array

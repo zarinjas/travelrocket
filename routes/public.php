@@ -11,6 +11,8 @@ Route::get('/reset-password/{token}', [AuthenticatedSessionController::class, 's
 
 Route::get('/packages/{package}', [PublicSiteController::class, 'packageShow'])->name('public.packages.show');
 Route::post('/packages/{package}/book', [PublicSiteController::class, 'packageBook'])->name('public.packages.book');
+Route::get('/booking/{booking}/payment', [PublicSiteController::class, 'paymentGateway'])->name('booking.payment');
+Route::post('/booking/{booking}/payment/complete', [PublicSiteController::class, 'completePayment'])->name('booking.payment.complete');
 Route::get('/booking/{booking}/confirmation', [PublicSiteController::class, 'bookingConfirmation'])->name('booking.confirmation');
 
 Route::post('/login', [AuthenticatedSessionController::class, 'store'])->middleware('guest')->name('login.store');
